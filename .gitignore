@@ -2,3 +2,5 @@ profiles.yml
 .venv/
 target/
 logs/
+
+.user.yml
