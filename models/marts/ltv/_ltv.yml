@@ -43,9 +43,22 @@ models:
         tests: [not_null]
 
   - name: rpt_returns_repeat
-    description: Repeat rate and LTV for customers whose first order was returned versus not.
+    description: >
+      Repeat rate and LTV for customers whose first order was returned versus not.
+      first_order_returned is ORDER-LEVEL: it means the customer's whole first order had order_status =
+      'Returned', not that they returned one item out of several — this dataset has no partial
+      return status (verified: no order mixes statuses across its items). Compare with
+      rpt_category_returns, which is ITEM-level.
+    columns:
+      - name: first_order_returned
+        description: True if the customer's entire first order was returned (order-level status), not an item-level return.
+        tests: [not_null]
 
   - name: rpt_category_returns
+    description: >
+      ITEM-LEVEL return rate by category: share of items in that category that came back, out of
+      all items sold or returned. Not the same question as rpt_returns_repeat (order-level, whole
+      first order).
     columns:
       - name: category
         tests: [not_null]

@@ -6,7 +6,7 @@ ltv_thelook:
     dev:
       type: bigquery
       method: oauth            # run `gcloud auth application-default login` first
-      project: your-gcp-project-id
+      project: local-volt-dbt
       dataset: ltv             # models land in ltv_staging and ltv_marts
       location: US
       threads: 4
