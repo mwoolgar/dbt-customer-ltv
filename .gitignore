@@ -2,7 +2,19 @@ profiles.yml
 .venv/
 target/
 logs/
-
+dbt_packages/
 .user.yml
 
-.user.yml
+# Secrets / credentials
+.env
+*.env
+*keyfile*.json
+*service-account*.json
+
+# Python / OS / editor
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

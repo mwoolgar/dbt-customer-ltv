@@ -24,4 +24,10 @@ models:
     description: Chance of ordering again after N days of silence. Basis for the churn cutoff.
 
   - name: rpt_lifecycle_summary
+    description: One row per lifecycle stage x channel, with customer count, revenue and average recency. Rollup of fct_customer_lifecycle for dashboards.
+
   - name: rpt_funnel
+    description: >
+      Session-level view-to-cart-to-purchase funnel by session_source, built directly from stg_thelook__events
+      (not from the star schema). Events exist only for customers who went on to buy, so rates here are
+      higher than a real site would show — use for shape, not absolute conversion.

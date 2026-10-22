@@ -26,11 +26,22 @@ models:
     staging:
       +materialized: view
       +schema: staging
+      +meta:
+        certified: false
+        usage: "Internal. Renamed/cast/filtered source data — query the marts instead."
     marts:
       +materialized: table
+      +meta:
+        certified: true
+        usage: "Safe for direct query, BI tools and agents."
       core:
         +schema: marts
+        +meta:
+          certified: false
+          usage: "Internal star schema. Grain/join layer for the LTV and retention marts — not a reporting table."
       ltv:
         +schema: marts
       retention:
         +schema: marts
+    semantic:
+      +schema: marts

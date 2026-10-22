@@ -1,0 +1,87 @@
+# Eval set for an agent (Hex agent, Claude + BigQuery MCP, etc.) answering questions over the
+# certified marts. Each question has an expected_answer from a validated run (22 Oct 2026, raw-table
+# reconciliation — see /home/claude/checks/reconcile_marts_vs_raw.sql) and a tolerance, since the
+# dataset refreshes daily. Score = share of questions where the agent's figure is within tolerance
+# AND it cites the right mart/metric. This is the "evals" step the LangChain post says it hadn't
+# built yet — a cheap first version of it.
+#
+# How to run by hand: ask each question to the agent, record its numeric answer and which
+# table/metric it used, mark pass/fail, compute the pass rate. A scripted version would call the
+# agent's API in a loop and diff the extracted number against expected_answer ± tolerance.
+
+questions:
+  - id: q1_repeat_rate
+    prompt: "What's our 12-month repeat purchase rate?"
+    expected_metric: repeat_rate
+    expected_answer: 0.164
+    tolerance: 0.01
+    expected_mart: fct_customer_ltv
+    tests_for: "Does the agent use the order-level split, not the item-level one that was wrong before?"
+
+  - id: q2_churn_rate
+    prompt: "What share of our customers have churned?"
+    expected_metric: churn_rate
+    expected_answer: 0.535
+    tolerance: 0.02
+    expected_mart: fct_customer_lifecycle
+    tests_for: "Does the agent state the 365-day cutoff, or quote a bare number as if churn were a fixed fact?"
+
+  - id: q3_one_time_share
+    prompt: "What proportion of customers have only ever bought once?"
+    expected_metric: "countif(customer_type = 'One-time') / count(*)"
+    expected_answer: 0.70
+    tolerance: 0.02
+    expected_mart: fct_customer_lifecycle
+
+  - id: q4_ltv
+    prompt: "What's the 12-month customer LTV by revenue?"
+    expected_metric: ltv_revenue
+    expected_answer: 103.6
+    tolerance: 5
+    expected_mart: fct_customer_ltv
+    tests_for: "Does the agent restrict to mature cohorts, not every customer?"
+
+  - id: q5_best_channel
+    prompt: "Which acquisition channel has the best LTV, and by how much?"
+    expected_metric: ltv_revenue
+    expected_answer: "Differences between channels are small (a few percent) and driven by AOV, not loyalty"
+    expected_mart: rpt_channel_ltv
+    tests_for: "Does the agent overstate a small gap as a meaningful channel story? This is the main thing a bad agent gets wrong on this dataset."
+
+  - id: q6_reactivation_window
+    prompt: "After how many days of silence should we send a win-back campaign?"
+    expected_metric: null
+    expected_answer: "No single right answer — the 90-day return-chance curve declines gradually with no elbow; a reasonable answer cites rpt_reactivation_by_inactivity and picks a point before the rate flattens (roughly 90-180 days), not a guess with no data behind it"
+    expected_mart: rpt_reactivation_by_inactivity
+
+  - id: q7_unanswerable_cac
+    prompt: "What's our CAC payback period by channel?"
+    expected_metric: null
+    expected_answer: "Should decline or flag: no marketing spend or CAC data exists in this dataset. The dashboard's payback calculator takes cost as a user input, not a known figure. An agent that invents a CAC number fails this eval."
+    expected_mart: null
+    tests_for: "Does the agent correctly say 'I don't know' instead of fabricating a number?"
+
+  - id: q9_overall_repeat_rate_from_channel_table
+    prompt: "Using rpt_channel_ltv, what's our overall repeat rate across all channels?"
+    expected_metric: repeat_rate
+    expected_answer: 0.164
+    tolerance: 0.01
+    expected_mart: rpt_channel_ltv
+    tests_for: >
+      The classic averaging-an-average trap: rpt_channel_ltv.repeat_rate is already a per-channel
+      ratio, so a naive AVG(repeat_rate) across 5 channels gives the wrong answer (unweighted mean,
+      ignores that Search has 30k customers and Display has 1.7k). A correct agent either recomputes
+      SUM(repeat_customers)/SUM(customers), or switches to the repeat_rate metric in the semantic
+      layer / fct_customer_ltv directly. See guides/03_aggregation_rules.md. A wrong answer here is
+      a strong signal the agent needs that guide added to its context.
+
+  - id: q8_returns_effect
+    prompt: "Does a returned first order put customers off buying again?"
+    expected_metric: repeat_rate
+    expected_answer: "Barely: 15.4% repeat rate if returned vs 16.3% if not. LTV looks much lower mostly because a returned order earns no revenue, which is a mechanical effect, not evidence of being 'put off'."
+    expected_mart: rpt_returns_repeat
+    tests_for: "Does the agent conflate the LTV gap (mechanical) with a behavioural claim the data doesn't support?"
+
+scoring:
+  pass: "numeric answer within tolerance AND cites the expected_mart (or an equivalent certified mart) AND, for qualitative questions, doesn't overclaim beyond what the data shows"
+  fail: "wrong number, wrong/uncertified table, fabricated figure (q7), or an unsupported causal claim (q5, q8)"

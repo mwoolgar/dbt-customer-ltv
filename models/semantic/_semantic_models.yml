@@ -1,0 +1,249 @@
+version: 2
+
+models:
+  - name: metricflow_time_spine
+    description: Day-grain time spine required by MetricFlow for ratio/cumulative metrics. Reuses dim_date.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+
+# MetricFlow semantic layer. Sits on top of the existing marts (no SQL changes to them) and gives
+# an agent or BI tool (Hex, dbt Semantic Layer, etc.) one place to find certified metric definitions
+# instead of writing its own SQL against fct_customer_ltv / fct_customer_lifecycle / fct_cohort_retention.
+# Validate with `dbt parse` (compiles the semantic graph) and `dbt sl list metrics` if the SL is configured.
+
+semantic_models:
+  - name: sem_customer_ltv
+    description: One row per mature-cohort customer. Source for all LTV and repeat-rate metrics.
+    model: ref('fct_customer_ltv')
+    defaults:
+      agg_time_dimension: first_order_date
+    entities:
+      - name: customer
+        type: primary
+        expr: customer_key
+      - name: channel
+        type: foreign
+        expr: channel_key
+    dimensions:
+      - name: first_order_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: cohort_month
+        type: time
+        type_params:
+          time_granularity: month
+      - name: is_mature_cohort
+        type: categorical
+      - name: has_repeat_purchase
+        type: categorical
+    measures:
+      - name: customers
+        description: Customers in a mature acquisition cohort.
+        agg: count_distinct
+        expr: customer_key
+        agg_time_dimension: first_order_date
+      - name: customers_with_repeat
+        description: Mature-cohort customers who placed a second order inside the 12-month window.
+        agg: count_distinct
+        expr: case when has_repeat_purchase then customer_key end
+      - name: first_order_revenue
+        agg: sum
+      - name: repeat_revenue
+        agg: sum
+      - name: first_order_margin
+        agg: sum
+      - name: repeat_margin
+        agg: sum
+
+  - name: sem_customer_lifecycle
+    description: One row per customer as of today. Source for churn, lifecycle-stage and RFM metrics.
+    model: ref('fct_customer_lifecycle')
+    defaults:
+      agg_time_dimension: last_order_date
+    entities:
+      - name: customer
+        type: primary
+        expr: customer_key
+      - name: channel
+        type: foreign
+        expr: channel_key
+    dimensions:
+      - name: last_order_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: lifecycle_stage
+        type: categorical
+      - name: customer_type
+        type: categorical
+      - name: rfm_segment
+        type: categorical
+      - name: is_churned
+        type: categorical
+    measures:
+      - name: all_customers
+        description: Every customer with at least one valid order.
+        agg: count_distinct
+        expr: customer_key
+      - name: churned_customers
+        description: Customers with no order for more than churn_days (var, default 365).
+        agg: count_distinct
+        expr: case when is_churned then customer_key end
+      - name: active_customers
+        description: Customers who ordered within active_days (var, default 90).
+        agg: count_distinct
+        expr: case when lifecycle_stage = 'Active' then customer_key end
+      - name: lifecycle_net_revenue
+        agg: sum
+        expr: net_revenue
+
+  - name: sem_cohort_retention
+    description: Acquisition month x channel x months since first order. Source for retention-curve metrics.
+    model: ref('fct_cohort_retention')
+    defaults:
+      agg_time_dimension: cohort_month
+    entities:
+      - name: cohort_retention
+        type: primary
+        expr: to_hex(md5(concat(cast(cohort_month as string), channel_name, cast(months_since_first_order as string))))
+      - name: channel
+        type: foreign
+        expr: channel_name
+    dimensions:
+      - name: cohort_month
+        type: time
+        type_params:
+          time_granularity: month
+      - name: months_since_first_order
+        type: categorical
+    measures:
+      - name: cohort_customers
+        agg: sum
+      - name: retained_customers
+        agg: sum
+        expr: active_customers
+
+metrics:
+  # --- base (simple) metrics: one measure each, so the ratio metrics below can reference them by name ---
+  - name: mature_cohort_customers
+    label: Mature-cohort customers
+    type: simple
+    type_params: {measure: customers}
+
+  - name: mature_cohort_repeat_customers
+    label: Mature-cohort customers with a repeat order
+    type: simple
+    type_params: {measure: customers_with_repeat}
+
+  - name: mature_cohort_first_order_revenue
+    label: Mature-cohort first-order revenue
+    type: simple
+    type_params: {measure: first_order_revenue}
+
+  - name: mature_cohort_first_order_margin
+    label: Mature-cohort first-order margin
+    type: simple
+    type_params: {measure: first_order_margin}
+
+  - name: mature_cohort_total_revenue
+    label: Mature-cohort total 12-month revenue
+    type: derived
+    type_params:
+      expr: first_order_revenue + repeat_revenue
+      metrics:
+        - name: mature_cohort_first_order_revenue
+          alias: first_order_revenue
+        - name: mature_cohort_repeat_revenue
+          alias: repeat_revenue
+
+  - name: mature_cohort_repeat_revenue
+    label: Mature-cohort repeat revenue
+    type: simple
+    type_params: {measure: repeat_revenue}
+
+  - name: mature_cohort_total_margin
+    label: Mature-cohort total 12-month margin
+    type: derived
+    type_params:
+      expr: first_order_margin + repeat_margin
+      metrics:
+        - name: mature_cohort_first_order_margin
+          alias: first_order_margin
+        - name: mature_cohort_repeat_margin
+          alias: repeat_margin
+
+  - name: mature_cohort_repeat_margin
+    label: Mature-cohort repeat margin
+    type: simple
+    type_params: {measure: repeat_margin}
+
+  - name: all_customers
+    label: All customers
+    type: simple
+    type_params: {measure: all_customers}
+
+  - name: churned_customers
+    label: Churned customers
+    type: simple
+    type_params: {measure: churned_customers}
+
+  - name: active_customers
+    label: Active customers
+    type: simple
+    type_params: {measure: active_customers}
+
+  # --- certified business metrics ---
+  - name: ltv_revenue
+    label: 12-month LTV (revenue)
+    description: Revenue per mature-cohort customer across the first order and 12 months of repeats.
+    type: ratio
+    type_params:
+      numerator: mature_cohort_total_revenue
+      denominator: mature_cohort_customers
+
+  - name: ltv_margin
+    label: 12-month LTV (margin)
+    description: Margin per mature-cohort customer across the first order and 12 months of repeats.
+    type: ratio
+    type_params:
+      numerator: mature_cohort_total_margin
+      denominator: mature_cohort_customers
+
+  - name: repeat_rate
+    label: 12-month repeat rate
+    description: Share of mature-cohort customers who ordered again within 12 months.
+    type: ratio
+    type_params:
+      numerator: mature_cohort_repeat_customers
+      denominator: mature_cohort_customers
+
+  - name: first_order_aov
+    label: First order value
+    description: Average revenue of a customer's first order.
+    type: ratio
+    type_params:
+      numerator: mature_cohort_first_order_revenue
+      denominator: mature_cohort_customers
+
+  - name: churn_rate
+    label: Churn rate
+    description: >
+      Share of customers with no order for more than churn_days (default 365). Inactivity-based,
+      since this data has no subscriptions. Sensitive to the churn_days variable — always quote the
+      cutoff alongside this metric.
+    type: ratio
+    type_params:
+      numerator: churned_customers
+      denominator: all_customers
+
+  - name: active_customer_rate
+    label: Active customer rate
+    description: Share of customers who ordered within the last active_days (default 90).
+    type: ratio
+    type_params:
+      numerator: active_customers
+      denominator: all_customers
