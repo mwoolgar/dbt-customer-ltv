@@ -76,11 +76,29 @@ questions:
       a strong signal the agent needs that guide added to its context.
 
   - id: q8_returns_effect
-    prompt: "Does a returned first order put customers off buying again?"
+    prompt: "Does having your whole first order returned (not just one item) put customers off buying again?"
     expected_metric: repeat_rate
-    expected_answer: "Barely: 15.4% repeat rate if returned vs 16.3% if not. LTV looks much lower mostly because a returned order earns no revenue, which is a mechanical effect, not evidence of being 'put off'."
+    expected_answer: "Barely: 15.4% repeat rate if first_order_returned is true vs 16.3% if not. LTV looks much lower mostly because a returned order earns no revenue, which is a mechanical effect, not evidence of being 'put off'."
     expected_mart: rpt_returns_repeat
-    tests_for: "Does the agent conflate the LTV gap (mechanical) with a behavioural claim the data doesn't support?"
+    tests_for: >
+      Does the agent (a) conflate the LTV gap (mechanical) with a behavioural claim the data
+      doesn't support, and (b) correctly treat first_order_returned as an order-level flag
+      (the whole order came back) rather than an item-level one? rpt_category_returns is the
+      item-level return rate and answers a different question — citing it here would be wrong.
+
+  - id: q10_scope_mismatch
+    prompt: "fct_customer_ltv says 16.4% of customers repeat, but fct_customer_lifecycle says about 31% of customers are repeat buyers. Which one is right?"
+    expected_metric: null
+    expected_answer: >
+      Both are right — they measure different things. fct_customer_ltv counts a 12-month repeat
+      rate on mature cohorts only (42,870 customers); fct_customer_lifecycle counts all-time repeat
+      buying with no time window, across every customer (66,119). A correct answer names both the
+      population difference (mature cohorts vs everyone) and the window difference (12 months vs
+      all-time), not just one of them. See guides/04_metric_scope_notes.md.
+    expected_mart: "fct_customer_ltv and fct_customer_lifecycle"
+    tests_for: >
+      Does the agent recognise this as a scope difference rather than picking one number as 'the
+      correct one' and discarding the other, or worse, averaging the two?
 
 scoring:
   pass: "numeric answer within tolerance AND cites the expected_mart (or an equivalent certified mart) AND, for qualitative questions, doesn't overclaim beyond what the data shows"

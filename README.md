@@ -29,7 +29,7 @@ not just by a person reading SQL:
 ## Run
 ```
 pip install dbt-bigquery
-copy profiles.yml.example profiles.yml          # Windows; then set your GCP project in it
+copy profiles.yml.example profiles.yml          # Windows; project is local-volt-dbt
 gcloud auth application-default login
 dbt build --profiles-dir .
 ```

@@ -1,6 +1,6 @@
 # Guide: this project, in plain language
 
-Read this before answering any question with `<your-gcp-project>.ltv_marts`. It's the equivalent of a
+Read this before answering any question with `local-volt-dbt.ltv_marts`. It's the equivalent of a
 Hex workspace guide or a system prompt for an agent working over this data.
 
 ## What this is
@@ -48,6 +48,13 @@ of those across rows is averaging an average: it ignores how many customers/sess
 represents. Always re-sum the numerator and denominator columns and divide once, or use the matching
 metric in `models/semantic/`. Full table of every affected column: `03_aggregation_rules.md`.
 
+## Two different "repeat rate" numbers exist — name which one you mean
+`fct_customer_ltv` gives a 12-month repeat rate on mature cohorts only (16.4%);
+`fct_customer_lifecycle.customer_type` gives an all-time repeat share on every customer (~31%). Both
+are correct for what they measure. Never quote one without saying which. Full explanation:
+`04_metric_scope_notes.md`.
+
 See also: `01_metric_glossary.md` (every metric name and its definition), `02_known_pitfalls.md`
 (mistakes already made and fixed, worth re-checking before trusting a new number),
-`03_aggregation_rules.md` (which stored columns are ratios, and how to recombine them correctly).
+`03_aggregation_rules.md` (which stored columns are ratios, and how to recombine them correctly),
+`04_metric_scope_notes.md` (why two correct "repeat rate" numbers can disagree).

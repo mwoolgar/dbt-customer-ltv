@@ -29,7 +29,7 @@ If the table only stores the ratio and not its parts, go to the row-level mart i
 | `rpt_channel_ltv` | `first_aov`, `ltv_revenue`, `ltv_margin` | `SUM(revenue cols) / SUM(customers)` | customers per channel |
 | `rpt_channel_ltv` | `orders_per_customer` | `SUM(total_orders) / SUM(customers)` | customers per channel |
 | `rpt_category_repeat` | `repeat_rate`, `ltv_revenue`, `ltv_margin`, `first_aov` | same pattern — go back to `fct_first_order_profile` and re-divide by `COUNT(*)` of customers in the categories you're grouping | customers per category |
-| `rpt_returns_repeat` | `repeat_rate`, `ltv_revenue`, `ltv_margin` | only 2 rows (returned / not) — don't average them together, that erases the comparison the table exists to show | n/a — compare, don't collapse |
+| `rpt_returns_repeat` | `repeat_rate`, `ltv_revenue`, `ltv_margin` | only 2 rows, split by `first_order_returned` (ORDER-level, not item-level — see model header comment) — don't average them together, that erases the comparison the table exists to show | n/a — compare, don't collapse |
 | `rpt_category_returns` | `return_rate` | `SUM(returned items) / SUM(returned + valid items)`, recomputed from `fct_order_lines` | items per category |
 | `fct_cohort_retention` | `retention_rate` | `SUM(active_customers) / SUM(cohort_customers)` | `cohort_customers` per cohort×channel×month row |
 | `rpt_lifecycle_summary` | `avg_orders`, `avg_days_since_last_order` | weighted by `customers`: `SUM(avg_orders * customers) / SUM(customers)` | customers per stage×channel |

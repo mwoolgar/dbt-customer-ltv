@@ -1,4 +1,10 @@
--- Do customers whose FIRST order was returned come back less often?
+-- Do customers whose FIRST ORDER was returned come back less often?
+-- "Returned" here is ORDER-LEVEL: the whole first order has order_status = 'Returned' (not "the
+-- customer returned one item out of several" — this dataset has no partial-order status, an order
+-- is either kept or fully Returned). A Returned order has no valid items, so it contributes zero
+-- revenue by construction — that's why the LTV gap below looks large even when repeat_rate doesn't.
+-- For item-level return rate (what share of items in a category come back), see rpt_category_returns
+-- instead; that is a different grain and a different question.
 -- First order here is the first order placed with any status except Cancelled. Returned orders have no
 -- valid items, so they cannot be seen through fct_customer_ltv, which only starts from a valid order.
 with orders as (
@@ -26,7 +32,7 @@ mature as (
 outcomes as (
     select
         m.customer_id,
-        m.first_order_status = 'Returned'           as first_order_returned,
+        m.first_order_status = 'Returned'           as first_order_returned,  -- ORDER-level: whole first order, not one item (see header comment)
         logical_or(l.order_id != m.first_order_id)  as has_repeat_purchase,
         sum(l.net_revenue)                          as window_revenue,
         sum(l.net_margin)                           as window_margin
@@ -46,4 +52,4 @@ select
     safe_divide(sum(coalesce(window_revenue, 0)), count(*))         as ltv_revenue,
     safe_divide(sum(coalesce(window_margin, 0)), count(*))          as ltv_margin
 from outcomes
-group by 1
+group by 1  -- first_order_returned
