@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: stg_thelook__order_items
+    columns:
+      - name: order_item_id
+        tests: [unique, not_null]
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Complete', 'Shipped', 'Processing', 'Cancelled', 'Returned']
+  - name: stg_thelook__users
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+  - name: stg_thelook__products
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+  - name: stg_thelook__orders
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+  - name: stg_thelook__events
+    columns:
+      - name: event_id
+        tests: [unique, not_null]

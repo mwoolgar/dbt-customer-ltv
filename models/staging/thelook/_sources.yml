@@ -1,0 +1,29 @@
+version: 2
+
+sources:
+  - name: thelook
+    description: Public BigQuery dataset of a fictional online clothing retailer.
+    database: bigquery-public-data
+    schema: thelook_ecommerce
+    tables:
+      - name: order_items
+        description: One row per item ordered.
+        columns:
+          - name: id
+            tests: [unique, not_null]
+      - name: users
+        description: One row per registered customer. traffic_source is the acquisition channel.
+        columns:
+          - name: id
+            tests: [unique, not_null]
+      - name: products
+        columns:
+          - name: id
+            tests: [unique, not_null]
+      - name: orders
+        description: One row per order. created_at is when the order was placed.
+        columns:
+          - name: order_id
+            tests: [unique, not_null]
+      - name: events
+        description: Web events (home, department, product, cart, purchase, cancel). Only customers who ordered appear.

@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: fct_customer_ltv
+    description: >
+      One row per customer with a valid purchase. First order = all valid items on the first order date.
+      Repeat = valid items after that date within the LTV window (var ltv_window_months).
+    columns:
+      - name: customer_key
+        tests: [unique, not_null]
+      - name: cohort_month
+        tests: [not_null]
+      - name: channel_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_channel')
+                field: channel_key
+
+  - name: fct_cohort_ltv
+    description: Acquisition month x channel. Mature cohorts only (a full window of history).
+    columns:
+      - name: customers
+        tests: [not_null]
+
+  - name: rpt_channel_ltv
+    columns:
+      - name: channel_name
+        tests: [unique, not_null]
+
+  - name: rpt_ltv_curve
+    description: Cumulative value per customer by months since first order, per channel.
+
+  - name: fct_first_order_profile
+    description: One row per mature-cohort customer with first-order category and return flag.
+    columns:
+      - name: customer_key
+        tests: [unique, not_null]
+
+  - name: rpt_category_repeat
+    columns:
+      - name: top_category
+        tests: [not_null]
+
+  - name: rpt_returns_repeat
+    description: Repeat rate and LTV for customers whose first order was returned versus not.
+
+  - name: rpt_category_returns
+    columns:
+      - name: category
+        tests: [not_null]

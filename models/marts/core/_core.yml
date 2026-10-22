@@ -1,0 +1,76 @@
+version: 2
+
+models:
+  - name: dim_channel
+    description: Acquisition channel (traffic source). One row per channel.
+    columns:
+      - name: channel_key
+        tests: [unique, not_null]
+      - name: channel_name
+        tests: [unique, not_null]
+
+  - name: dim_product
+    columns:
+      - name: product_key
+        tests: [unique, not_null]
+
+  - name: dim_date
+    description: Calendar day. Join on date_key.
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+
+  - name: dim_customer
+    description: One row per registered customer, with first order date and acquisition cohort month.
+    columns:
+      - name: customer_key
+        tests: [unique, not_null]
+      - name: channel_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_channel')
+                field: channel_key
+
+  - name: fct_order_lines
+    description: Order item grain fact. Net revenue is the sale price, margin is sale price minus product cost.
+    columns:
+      - name: order_line_key
+        tests: [unique, not_null]
+      - name: customer_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
+      - name: product_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_key
+      - name: channel_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_channel')
+                field: channel_key
+      - name: order_date_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
+  - name: fct_orders
+    description: Order grain fact (orders with at least one valid item), with order sequence and gap since the previous order.
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: customer_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key

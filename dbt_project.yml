@@ -1,0 +1,36 @@
+name: ltv_thelook
+version: '1.0.0'
+config-version: 2
+profile: ltv_thelook
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Order statuses that count as a real sale (cancelled and returned items are excluded)
+  valid_statuses: ['Complete', 'Shipped', 'Processing']
+  # Length of the LTV window, in months after the first order date
+  ltv_window_months: 12
+  date_spine_start: '2019-01-01'
+  # Lifecycle stages by days since last order. churn_days is set from the reactivation analysis
+  # (rpt_reactivation_by_inactivity): by 365 days the 90-day return chance has fallen to about 4%.
+  active_days: 90
+  cooling_days: 180
+  churn_days: 365
+
+models:
+  ltv_thelook:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      core:
+        +schema: marts
+      ltv:
+        +schema: marts
+      retention:
+        +schema: marts

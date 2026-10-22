@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: fct_customer_lifecycle
+    description: >
+      One row per customer as of today. Lifecycle stage uses days since last order against the active_days,
+      cooling_days and churn_days variables. Churn means inactivity, not a cancelled contract.
+    columns:
+      - name: customer_key
+        tests: [unique, not_null]
+      - name: lifecycle_stage
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Cooling', 'At risk', 'Lapsed']
+
+  - name: fct_cohort_retention
+    description: Share of each acquisition cohort ordering in each later calendar month, by channel.
+    columns:
+      - name: retention_rate
+        tests: [not_null]
+
+  - name: rpt_reactivation_by_inactivity
+    description: Chance of ordering again after N days of silence. Basis for the churn cutoff.
+
+  - name: rpt_lifecycle_summary
+  - name: rpt_funnel
